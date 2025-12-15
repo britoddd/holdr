@@ -4,6 +4,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Item, Category, StoragePlace } from "./types";
 
+// Browser-compatible UUID generator
+const generateId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+};
+
 type State = {
   items: Item[];
   categories: Category[];
@@ -49,7 +54,7 @@ export const useStore = create<State>()(
             ...state.items,
             {
               ...item,
-              id: crypto.randomUUID(),
+              id: generateId(),
               createdAt: new Date(),
             },
           ],
@@ -70,7 +75,7 @@ export const useStore = create<State>()(
             ...state.categories,
             {
               ...category,
-              id: crypto.randomUUID(),
+              id: generateId(),
             },
           ],
         })),
@@ -94,7 +99,7 @@ export const useStore = create<State>()(
             ...state.storagePlaces,
             {
               ...place,
-              id: crypto.randomUUID(),
+              id: generateId(),
             },
           ],
         })),

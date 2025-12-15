@@ -78,6 +78,7 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
     };
 
     try {
+      console.log("Submitting item data:", data);
       if (onSubmit) {
         await onSubmit(data);
       }
@@ -85,7 +86,9 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
         onCancel();
       }
     } catch (error) {
-      console.error("Failed to submit item", error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error("Failed to submit item:", errorMsg, error);
+      throw new Error(errorMsg || "Failed to save item");
     }
   };
 

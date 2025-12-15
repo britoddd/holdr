@@ -68,10 +68,12 @@ export default function Home() {
       }
       setShowAddForm(false);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to save item";
       setNotification({
         type: "error",
-        message: "Failed to save item. Please try again.",
+        message: `Error: ${errorMessage}`,
       });
+      console.error("Failed to save item", error);
     }
   };
 
@@ -522,6 +524,28 @@ export default function Home() {
           </Card>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Add New Item Card */}
+            <Card 
+              className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-600"
+              onClick={() => setShowAddForm(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  setShowAddForm(true);
+                  event.preventDefault();
+                }
+              }}
+            >
+              <CardContent className="flex flex-col items-center justify-center h-full pt-12 pb-12">
+                <div className="text-6xl mb-4">➕</div>
+                <h3 className="text-lg font-semibold text-center mb-2">Create New Item</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                  Click to add a new item to your inventory
+                </p>
+              </CardContent>
+            </Card>
+
             {filteredItems.map((item) => (
               <Card key={item.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
@@ -604,6 +628,30 @@ export default function Home() {
           </div>
         ) : (
           <div className="space-y-2">
+            {/* Add New Item Card for List View */}
+            <Card 
+              className="hover:shadow-sm transition-shadow cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-600"
+              onClick={() => setShowAddForm(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  setShowAddForm(true);
+                  event.preventDefault();
+                }
+              }}
+            >
+              <CardContent className="p-4 flex items-center justify-center gap-4">
+                <div className="text-5xl">➕</div>
+                <div>
+                  <h3 className="font-semibold">Create New Item</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Click to add a new item to your inventory
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {filteredItems.map((item) => (
               <Card key={item.id} className="hover:shadow-sm transition-shadow">
                 <CardContent className="p-4">

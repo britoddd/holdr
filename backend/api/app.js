@@ -5,7 +5,7 @@ const app = express();
 const port = 3000;
 
 // URL of local scraper service (runs with headless: false on user's machine)
-const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL || "http://localhost:3001";
+const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL || "http://192.168.18.91:3001";
 
 // Configure multer for memory storage
 const upload = multer({
@@ -116,6 +116,7 @@ app.get("/", (req, res) => {
   res.send("3001 mas, bukan 3000");
 });
 
-app.listen(port, () => {
-  console.log(`Backend API listening on port ${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Backend API listening on http://0.0.0.0:${port}`);
+  console.log(`Available at: http://192.168.18.91:${port} (from LAN)`);
 });
