@@ -6,7 +6,7 @@ import { NewItemForm } from "@/components/new-item-form";
 import { CategoryManager } from "@/components/category-manager";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useStore } from "@/lib/store";
-import { fetchMarketPrice } from "@/lib/pricing";
+import { fetchMarketPrice, MarketPriceData, calculateSellability, getSellabilityLabel } from "@/lib/pricing";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus,
@@ -35,7 +35,9 @@ export default function Home() {
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const [selectedStoragePlace, setSelectedStoragePlace] = useState<string | null>(null);
+  const [selectedStoragePlace, setSelectedStoragePlace] = useState<
+    string | null
+  >(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<"name" | "date" | "qty">("name");
 
@@ -45,9 +47,9 @@ export default function Home() {
     quantity: number;
     category: string;
     storagePlace: string;
-    dateBought: string;
     dateOwned: string;
     usageFrequency: "Daily" | "Weekly" | "Monthly" | "Rarely" | "Never";
+    imageUrl?: string;
   }) => {
     try {
       if (editingItem) {
@@ -92,15 +94,17 @@ export default function Home() {
   const [confirmationAnswers, setConfirmationAnswers] = useState<
     Record<string, boolean>
   >({});
-  const [marketPrices, setMarketPrices] = useState<
-    Record<string, number | string>
+  const [marketData, setMarketData] = useState<
+    Record<string, MarketPriceData>
   >({});
   const [unusedDecisions, setUnusedDecisions] = useState<
     Record<string, "sell" | "keep">
   >({});
+  const [isConfirmationHidden, setIsConfirmationHidden] = useState(false);
+  const [isUnusedItemsHidden, setIsUnusedItemsHidden] = useState(false);
 
   // Simple cache to avoid re-scraping the same query repeatedly
-  const priceCacheRef = useRef<Map<string, number | null>>(new Map());
+  const priceCacheRef = useRef<Map<string, MarketPriceData | null>>(new Map());
 
   // Calculate unused items (Rarely used + aged >40 days, or Never used)
   const getUnusedItems = () => {
@@ -152,7 +156,7 @@ export default function Home() {
   // Fetch market prices for unused items using scrape API
   useEffect(() => {
     const unused = getUnusedItems();
-    const toFetch = unused.filter((it) => marketPrices[it.id] === undefined);
+    const toFetch = unused.filter((it) => marketData[it.id] === undefined);
     if (toFetch.length === 0) return;
 
     let cancelled = false;
@@ -160,20 +164,34 @@ export default function Home() {
       for (const it of toFetch) {
         const queryKey = `${it.name} ${it.category}`.trim().toLowerCase();
         try {
-          let bestPrice: number | null;
+          let priceData: MarketPriceData | null;
           if (priceCacheRef.current.has(queryKey)) {
-            bestPrice = priceCacheRef.current.get(queryKey) ?? null;
+            priceData = priceCacheRef.current.get(queryKey) ?? null;
           } else {
-            bestPrice = await fetchMarketPrice({ name: it.name, category: it.category });
-            priceCacheRef.current.set(queryKey, bestPrice);
+            priceData = await fetchMarketPrice({
+              name: it.name,
+              category: it.category,
+            });
+            priceCacheRef.current.set(queryKey, priceData);
           }
 
-          if (!cancelled && bestPrice !== null) {
-            setMarketPrices((prev) => ({ ...prev, [it.id]: bestPrice }));
+          if (!cancelled && priceData) {
+            setMarketData((prev) => ({ ...prev, [it.id]: priceData }));
+          } else if (!cancelled) {
+            setMarketData((prev) => ({
+              ...prev,
+              [it.id]: { bestPrice: null, items: [], averageSoldCount: 0, totalListings: 0 },
+            }));
           }
         } catch (error) {
           if (process.env.NODE_ENV !== "production") {
             console.error("Failed to fetch market price", error);
+          }
+          if (!cancelled) {
+            setMarketData((prev) => ({
+              ...prev,
+              [it.id]: { bestPrice: null, items: [], averageSoldCount: 0, totalListings: 0 },
+            }));
           }
         }
       }
@@ -238,16 +256,23 @@ export default function Home() {
     return () => window.clearTimeout(timeout);
   }, [notification]);
 
-  const filteredItems = items.filter((item) => {
-    const categoryMatch = !selectedCategory || item.category === selectedCategory;
-    const storageMatch = !selectedStoragePlace || item.storagePlace === selectedStoragePlace;
-    return categoryMatch && storageMatch;
-  }).sort((a, b) => {
-    if (sortBy === "name") return a.name.localeCompare(b.name);
-    if (sortBy === "date") return new Date(b.dateOwned).getTime() - new Date(a.dateOwned).getTime();
-    if (sortBy === "qty") return b.quantity - a.quantity;
-    return 0;
-  });
+  const filteredItems = items
+    .filter((item) => {
+      const categoryMatch =
+        !selectedCategory || item.category === selectedCategory;
+      const storageMatch =
+        !selectedStoragePlace || item.storagePlace === selectedStoragePlace;
+      return categoryMatch && storageMatch;
+    })
+    .sort((a, b) => {
+      if (sortBy === "name") return a.name.localeCompare(b.name);
+      if (sortBy === "date")
+        return (
+          new Date(b.dateOwned).getTime() - new Date(a.dateOwned).getTime()
+        );
+      if (sortBy === "qty") return b.quantity - a.quantity;
+      return 0;
+    });
 
   const getCategoryColor = (categoryName: string) => {
     return (
@@ -285,57 +310,70 @@ export default function Home() {
 
         {/* Confirmation Segment - Do you still use these items? */}
         {getItemsNeedingConfirmation().length > 0 && (
-          <Card className="mb-8 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+          <Card className="mb-8 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 gap-3 py-4">
             <CardHeader>
-              <CardTitle className="text-yellow-900 dark:text-yellow-100">
-                Are you still using these items?
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {getItemsNeedingConfirmation().map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 rounded-lg overflow-hidden border bg-gray-50 dark:bg-gray-700 flex-shrink-0">
-                        {item.imageUrl ? (
-                          <img
-                            src={item.imageUrl}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ImageOff className="h-8 w-8 text-gray-400 dark:text-gray-500" />
-                          </div>
-                        )}
-                      </div>
-                      <span className="font-semibold">{item.name}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 w-40 sm:w-48">
-                      <Button
-                        onClick={() => handleConfirmationYes(item.id)}
-                        variant="default"
-                        size="sm"
-                        className="w-full justify-center bg-green-500 hover:bg-green-600"
-                      >
-                        Yes
-                      </Button>
-                      <Button
-                        onClick={() => handleConfirmationNo(item.id)}
-                        variant="destructive"
-                        size="sm"
-                        className="w-full justify-center"
-                      >
-                        No
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-yellow-900 dark:text-yellow-100">
+                  Are you still using these items? (
+                  {getItemsNeedingConfirmation().length})
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsConfirmationHidden(!isConfirmationHidden)}
+                  className="text-yellow-900 dark:text-yellow-100"
+                >
+                  {isConfirmationHidden ? "Show" : "Hide"}
+                </Button>
               </div>
-            </CardContent>
+            </CardHeader>
+            {!isConfirmationHidden && (
+              <CardContent>
+                <div className="space-y-3">
+                  {getItemsNeedingConfirmation().map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden border bg-gray-50 dark:bg-gray-700 flex-shrink-0">
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageOff className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-semibold">{item.name}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 w-40 sm:w-48">
+                        <Button
+                          onClick={() => handleConfirmationYes(item.id)}
+                          variant="default"
+                          size="sm"
+                          className="w-full justify-center bg-green-500 hover:bg-green-600"
+                        >
+                          Yes
+                        </Button>
+                        <Button
+                          onClick={() => handleConfirmationNo(item.id)}
+                          variant="destructive"
+                          size="sm"
+                          className="w-full justify-center"
+                        >
+                          No
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
 
@@ -369,7 +407,9 @@ export default function Home() {
         {/* Storage Place & View/Sort Controls */}
         <div className="mb-6 flex gap-2 flex-wrap items-center justify-between">
           <div className="flex gap-2 flex-wrap items-center">
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Storage:</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Storage:
+            </span>
             <Button
               variant={selectedStoragePlace === null ? "default" : "outline"}
               onClick={() => setSelectedStoragePlace(null)}
@@ -380,7 +420,9 @@ export default function Home() {
             {storagePlaces.map((place) => (
               <Button
                 key={place.id}
-                variant={selectedStoragePlace === place.name ? "default" : "outline"}
+                variant={
+                  selectedStoragePlace === place.name ? "default" : "outline"
+                }
                 onClick={() => setSelectedStoragePlace(place.name)}
                 size="sm"
                 className="flex items-center gap-2"
@@ -390,7 +432,11 @@ export default function Home() {
                   style={{ backgroundColor: place.color }}
                 />
                 {place.name} (
-                {items.filter((item) => item.storagePlace === place.name).length})
+                {
+                  items.filter((item) => item.storagePlace === place.name)
+                    .length
+                }
+                )
               </Button>
             ))}
           </div>
@@ -579,11 +625,15 @@ export default function Home() {
                       <div className="flex justify-between items-start">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <CardTitle className="text-sm truncate">{item.name}</CardTitle>
+                            <CardTitle className="text-sm truncate">
+                              {item.name}
+                            </CardTitle>
                             <span
                               className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
                               style={{
-                                backgroundColor: getCategoryColor(item.category),
+                                backgroundColor: getCategoryColor(
+                                  item.category
+                                ),
                                 color: "#fff",
                               }}
                             >
@@ -614,8 +664,12 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="mt-2 flex justify-between text-xs text-gray-500">
-                        <span>Qty: {item.quantity} • Storage: {item.storagePlace}</span>
-                        <span className="text-blue-600 dark:text-blue-400">{item.usageFrequency}</span>
+                        <span>
+                          Qty: {item.quantity} • Storage: {item.storagePlace}
+                        </span>
+                        <span className="text-blue-600 dark:text-blue-400">
+                          {item.usageFrequency}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -633,11 +687,22 @@ export default function Home() {
           return unusedItems.length > 0 ? (
             <Card className="mt-8 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
               <CardHeader>
-                <CardTitle className="text-red-900 dark:text-red-100">
-                  Unused Items ({unusedItems.length})
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-red-900 dark:text-red-100">
+                    Unused Items ({unusedItems.length})
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsUnusedItemsHidden(!isUnusedItemsHidden)}
+                    className="text-red-900 dark:text-red-100"
+                  >
+                    {isUnusedItemsHidden ? "Show" : "Hide"}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent>
+              {!isUnusedItemsHidden && (
+                <CardContent>
                 <div className="space-y-4">
                   {unusedItems.map((item) => (
                     <Card
@@ -683,12 +748,36 @@ export default function Home() {
                                 </p>
                               </div>
                               <div className="text-right ml-2">
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-gray-500 mb-1">
                                   Market price
                                 </div>
-                                <div className="text-sm font-semibold">
-                                  {formatRupiah(marketPrices[item.id])}
+                                <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                                  {(() => {
+                                    const data = marketData[item.id];
+                                    if (!data) return "...";
+                                    if (!data.bestPrice) return "N/A";
+                                    return formatRupiah(data.bestPrice);
+                                  })()}
                                 </div>
+                                {(() => {
+                                  const data = marketData[item.id];
+                                  if (!data || !data.bestPrice) return null;
+                                  const sellability = calculateSellability(data.bestPrice, data.items);
+                                  const label = getSellabilityLabel(sellability);
+                                  return (
+                                    <div className="mt-1 flex flex-col items-end gap-0.5">
+                                      <div 
+                                        className="text-xs font-semibold px-2 py-0.5 rounded"
+                                        style={{ backgroundColor: label.color + '20', color: label.color }}
+                                      >
+                                        {label.text}
+                                      </div>
+                                      <div className="text-[10px] text-gray-500">
+                                        ~{data.averageSoldCount} sold avg
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
 
@@ -721,8 +810,11 @@ export default function Home() {
                                   variant="destructive"
                                   size="sm"
                                   onClick={() => {
-                                    const query = `${item.name} ${item.category}`.trim();
-                                    const url = `https://www.tokopedia.com/search?q=${encodeURIComponent(query)}`;
+                                    const query =
+                                      `${item.name} ${item.category}`.trim();
+                                    const url = `https://www.tokopedia.com/search?q=${encodeURIComponent(
+                                      query
+                                    )}`;
                                     window.open(url, "_blank");
                                     setUnusedDecisions((p) => ({
                                       ...p,
@@ -747,6 +839,7 @@ export default function Home() {
                   ))}
                 </div>
               </CardContent>
+              )}
             </Card>
           ) : null;
         })()}

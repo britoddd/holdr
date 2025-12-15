@@ -1,9 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
-const { scrapeTokopediaSearch } = require("../tokopedia-scraper/newScrape");
 const app = express();
 const port = 3000;
+
+// URL of local scraper service (runs with headless: false on user's machine)
+const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL || "http://localhost:3001";
 
 // Configure multer for memory storage
 const upload = multer({
@@ -75,12 +77,10 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Scrape Tokopedia search results and return JSON
+// Scrape Tokopedia search results via local scraper service
 app.get("/api/scrape", async (req, res) => {
   const query = (req.query.q || req.query.query || "").toString().trim();
   const maxItems = Number(req.query.max || req.query.limit || 20);
-  const headlessParam = String(req.query.headless || "").toLowerCase();
-  const headless = headlessParam === "1" || headlessParam === "true";
 
   if (!query) {
     return res.status(400).json({ error: "Missing query parameter 'q'" });
@@ -90,14 +90,25 @@ app.get("/api/scrape", async (req, res) => {
     Number.isFinite(maxItems) && maxItems > 0 ? Math.min(maxItems, 50) : 20;
 
   try {
-    const items = await scrapeTokopediaSearch(query, {
-      maxItems: safeMax,
-      headless,
-    });
-    res.json({ query, count: items.length, items });
+    // Forward request to local scraper service
+    const url = `${SCRAPER_SERVICE_URL}/api/scrape?q=${encodeURIComponent(query)}&max=${safeMax}`;
+    console.log(`Forwarding scrape request to: ${url}`);
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Scraper service error: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log("Scraper response:", JSON.stringify(data, null, 2));
+    res.json(data);
   } catch (error) {
     console.error("Scrape API error:", error.message);
-    res.status(500).json({ error: "Scrape failed", detail: error.message });
+    res.status(500).json({ 
+      error: "Scrape failed", 
+      detail: error.message,
+      hint: "Make sure the scraper service is running on port 3001: node backend/scraper-service/server.js"
+    });
   }
 });
 

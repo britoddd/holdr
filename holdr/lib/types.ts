@@ -5,7 +5,6 @@ export type Item = {
   quantity: number;
   category: string;
   storagePlace: string;
-  dateBought: string; // ISO date string
   dateOwned: string; // ISO date string - when they started owning it
   usageFrequency: "Daily" | "Weekly" | "Monthly" | "Rarely" | "Never";
   imageUrl?: string;

@@ -166,9 +166,6 @@ async function scrapeTokopediaSearch(query, options = {}) {
       });
 
       console.log("Raw extracted items:", items.length);
-      if (items.length > 0) {
-        console.log("Sample item:", items[0]);
-      }
 
       console.log(`Found ${items.length} raw items this scroll`);
 
