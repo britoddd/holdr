@@ -14,7 +14,7 @@ import { Item } from "@/lib/types";
 type UsageFrequencyType = "Daily" | "Weekly" | "Monthly" | "Rarely" | "Never";
 
 type NewItemFormProps = {
-  onSubmit?: (data: { name: string; description: string; quantity: number; category: string; storagePlace: string; dateBought: string; dateOwned: string; usageFrequency: UsageFrequencyType; imageUrl?: string }) => void;
+  onSubmit?: (data: { name: string; description: string; quantity: number; category: string; storagePlace: string; dateOwned: string; usageFrequency: UsageFrequencyType; imageUrl?: string }) => void;
   onCancel?: () => void;
   title?: string;
   className?: string;
@@ -37,9 +37,6 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
   const [newStorageName, setNewStorageName] = useState("");
   const [newStorageColor, setNewStorageColor] = useState("#0ea5e9");
   const addStoragePlace = useStore((state) => state.addStoragePlace);
-  const [dateBought, setDateBought] = useState<string>(
-    editItem?.dateBought || new Date().toISOString().split("T")[0]
-  );
   const [dateOwned, setDateOwned] = useState<string>(
     editItem?.dateOwned || new Date().toISOString().split("T")[0]
   );
@@ -58,7 +55,6 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
       setQuantity(editItem.quantity);
       setSelectedCategory(editItem.category);
       setSelectedStorage(editItem.storagePlace);
-      setDateBought(editItem.dateBought || new Date().toISOString().split("T")[0]);
       setDateOwned(editItem.dateOwned || new Date().toISOString().split("T")[0]);
       setUsageFrequency(editItem.usageFrequency || "Weekly");
       setImageUrl(editItem.imageUrl);
@@ -76,7 +72,6 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
       quantity,
       category: selectedCategory || "Other",
       storagePlace: selectedStorage || "Other",
-      dateBought,
       dateOwned,
       usageFrequency,
       imageUrl,
@@ -351,18 +346,6 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
                 </Button>
               </div>
             )}
-
-            <div className="space-y-2">
-              <Label htmlFor="dateBought">Date Bought</Label>
-              <Input
-                id="dateBought"
-                name="dateBought"
-                type="date"
-                required
-                value={dateBought}
-                onChange={(e) => setDateBought(e.target.value)}
-              />
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="dateOwned">Date Owned</Label>

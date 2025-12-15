@@ -6,7 +6,8 @@ import { NewItemForm } from "@/components/new-item-form";
 import { CategoryManager } from "@/components/category-manager";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useStore } from "@/lib/store";
-import { useState, useEffect, useCallback } from "react";
+import { fetchMarketPrice } from "@/lib/pricing";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -17,7 +18,6 @@ import {
   ImageOff,
 } from "lucide-react";
 import { Item } from "@/lib/types";
-import { estimatePrice } from "@/lib/api";
 
 export default function Home() {
   const items = useStore((state) => state.items);
@@ -35,6 +35,9 @@ export default function Home() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [selectedStoragePlace, setSelectedStoragePlace] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<"name" | "date" | "qty">("name");
 
   const handleAddItem = (data: {
     name: string;
@@ -96,6 +99,9 @@ export default function Home() {
     Record<string, "sell" | "keep">
   >({});
 
+  // Simple cache to avoid re-scraping the same query repeatedly
+  const priceCacheRef = useRef<Map<string, number | null>>(new Map());
+
   // Calculate unused items (Rarely used + aged >40 days, or Never used)
   const getUnusedItems = () => {
     const now = new Date();
@@ -143,7 +149,7 @@ export default function Home() {
     }));
   };
 
-  // Fetch market prices for unused items
+  // Fetch market prices for unused items using scrape API
   useEffect(() => {
     const unused = getUnusedItems();
     const toFetch = unused.filter((it) => marketPrices[it.id] === undefined);
@@ -152,17 +158,23 @@ export default function Home() {
     let cancelled = false;
     (async () => {
       for (const it of toFetch) {
+        const queryKey = `${it.name} ${it.category}`.trim().toLowerCase();
         try {
-          const res: any = await estimatePrice(it.name, it.category);
-          const price =
-            typeof res === "number"
-              ? res
-              : res?.price ?? res?.median ?? res?.avg ?? null;
-          if (!cancelled && price !== null && price !== undefined) {
-            setMarketPrices((prev) => ({ ...prev, [it.id]: price }));
+          let bestPrice: number | null;
+          if (priceCacheRef.current.has(queryKey)) {
+            bestPrice = priceCacheRef.current.get(queryKey) ?? null;
+          } else {
+            bestPrice = await fetchMarketPrice({ name: it.name, category: it.category });
+            priceCacheRef.current.set(queryKey, bestPrice);
           }
-        } catch {
-          // ignore individual errors
+
+          if (!cancelled && bestPrice !== null) {
+            setMarketPrices((prev) => ({ ...prev, [it.id]: bestPrice }));
+          }
+        } catch (error) {
+          if (process.env.NODE_ENV !== "production") {
+            console.error("Failed to fetch market price", error);
+          }
         }
       }
     })();
@@ -226,9 +238,16 @@ export default function Home() {
     return () => window.clearTimeout(timeout);
   }, [notification]);
 
-  const filteredItems = selectedCategory
-    ? items.filter((item) => item.category === selectedCategory)
-    : items;
+  const filteredItems = items.filter((item) => {
+    const categoryMatch = !selectedCategory || item.category === selectedCategory;
+    const storageMatch = !selectedStoragePlace || item.storagePlace === selectedStoragePlace;
+    return categoryMatch && storageMatch;
+  }).sort((a, b) => {
+    if (sortBy === "name") return a.name.localeCompare(b.name);
+    if (sortBy === "date") return new Date(b.dateOwned).getTime() - new Date(a.dateOwned).getTime();
+    if (sortBy === "qty") return b.quantity - a.quantity;
+    return 0;
+  });
 
   const getCategoryColor = (categoryName: string) => {
     return (
@@ -321,13 +340,13 @@ export default function Home() {
         )}
 
         {/* Category Filter */}
-        <div className="mb-6 flex gap-2 flex-wrap">
+        <div className="mb-3 flex gap-2 flex-wrap">
           <Button
             variant={selectedCategory === null ? "default" : "outline"}
             onClick={() => setSelectedCategory(null)}
             size="sm"
           >
-            All ({items.length})
+            All Categories ({items.length})
           </Button>
           {categories.map((cat) => (
             <Button
@@ -345,6 +364,92 @@ export default function Home() {
               {items.filter((item) => item.category === cat.name).length})
             </Button>
           ))}
+        </div>
+
+        {/* Storage Place & View/Sort Controls */}
+        <div className="mb-6 flex gap-2 flex-wrap items-center justify-between">
+          <div className="flex gap-2 flex-wrap items-center">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Storage:</span>
+            <Button
+              variant={selectedStoragePlace === null ? "default" : "outline"}
+              onClick={() => setSelectedStoragePlace(null)}
+              size="sm"
+            >
+              All ({items.length})
+            </Button>
+            {storagePlaces.map((place) => (
+              <Button
+                key={place.id}
+                variant={selectedStoragePlace === place.name ? "default" : "outline"}
+                onClick={() => setSelectedStoragePlace(place.name)}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: place.color }}
+                />
+                {place.name} (
+                {items.filter((item) => item.storagePlace === place.name).length})
+              </Button>
+            ))}
+          </div>
+
+          {/* View Mode & Sort Selector */}
+          <div className="flex gap-2 items-center">
+            {/* View Toggle */}
+            <div className="flex gap-1 border rounded-md p-1">
+              <Button
+                variant={viewMode === "grid" ? "default" : "ghost"}
+                onClick={() => setViewMode("grid")}
+                size="sm"
+                className="px-2"
+                title="Grid view"
+              >
+                ⊞
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                onClick={() => setViewMode("list")}
+                size="sm"
+                className="px-2"
+                title="List view"
+              >
+                ☰
+              </Button>
+            </div>
+
+            {/* Sort Toggle */}
+            <div className="flex gap-1 border rounded-md p-1">
+              <Button
+                variant={sortBy === "name" ? "default" : "ghost"}
+                onClick={() => setSortBy("name")}
+                size="sm"
+                className="px-2 text-xs"
+                title="Sort by name"
+              >
+                A-Z
+              </Button>
+              <Button
+                variant={sortBy === "date" ? "default" : "ghost"}
+                onClick={() => setSortBy("date")}
+                size="sm"
+                className="px-2 text-xs"
+                title="Sort by date owned"
+              >
+                📅
+              </Button>
+              <Button
+                variant={sortBy === "qty" ? "default" : "ghost"}
+                onClick={() => setSortBy("qty")}
+                size="sm"
+                className="px-2 text-xs"
+                title="Sort by quantity"
+              >
+                #
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Items Grid */}
@@ -369,7 +474,7 @@ export default function Home() {
               </p>
             </div>
           </Card>
-        ) : (
+        ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredItems.map((item) => (
               <Card key={item.id} className="hover:shadow-lg transition-shadow">
@@ -446,6 +551,73 @@ export default function Home() {
                     <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
                       {item.usageFrequency}
                     </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredItems.map((item) => (
+              <Card key={item.id} className="hover:shadow-sm transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-20 h-20 rounded-md overflow-hidden border bg-gray-50 dark:bg-gray-800 flex-shrink-0">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageOff className="h-6 w-6 text-gray-400 dark:text-gray-500" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CardTitle className="text-sm truncate">{item.name}</CardTitle>
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
+                              style={{
+                                backgroundColor: getCategoryColor(item.category),
+                                color: "#fff",
+                              }}
+                            >
+                              {item.category}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
+                            {item.description || "No description"}
+                          </p>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-blue-500 hover:text-blue-700"
+                            onClick={() => handleEditItem(item)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-red-500 hover:text-red-700"
+                            onClick={() => setDeleteConfirm(item.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex justify-between text-xs text-gray-500">
+                        <span>Qty: {item.quantity} • Storage: {item.storagePlace}</span>
+                        <span className="text-blue-600 dark:text-blue-400">{item.usageFrequency}</span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -529,12 +701,13 @@ export default function Home() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    handleConfirmationYes(item.id);
                                     setUnusedDecisions((p) => ({
                                       ...p,
                                       [item.id]: "keep",
-                                    }))
-                                  }
+                                    }));
+                                  }}
                                   className={
                                     "w-full justify-center " +
                                     (unusedDecisions[item.id] === "keep"
@@ -547,12 +720,15 @@ export default function Home() {
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    const query = `${item.name} ${item.category}`.trim();
+                                    const url = `https://www.tokopedia.com/search?q=${encodeURIComponent(query)}`;
+                                    window.open(url, "_blank");
                                     setUnusedDecisions((p) => ({
                                       ...p,
                                       [item.id]: "sell",
-                                    }))
-                                  }
+                                    }));
+                                  }}
                                   className={
                                     "w-full justify-center " +
                                     (unusedDecisions[item.id] === "sell"

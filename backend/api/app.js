@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
-const { scrapeTokopediaSearch } = require("../tokopedia-scraper/scrape");
+const { scrapeTokopediaSearch } = require("../tokopedia-scraper/newScrape");
 const app = express();
 const port = 3000;
 
@@ -79,6 +79,8 @@ app.get("/health", (req, res) => {
 app.get("/api/scrape", async (req, res) => {
   const query = (req.query.q || req.query.query || "").toString().trim();
   const maxItems = Number(req.query.max || req.query.limit || 20);
+  const headlessParam = String(req.query.headless || "").toLowerCase();
+  const headless = headlessParam === "1" || headlessParam === "true";
 
   if (!query) {
     return res.status(400).json({ error: "Missing query parameter 'q'" });
@@ -90,7 +92,7 @@ app.get("/api/scrape", async (req, res) => {
   try {
     const items = await scrapeTokopediaSearch(query, {
       maxItems: safeMax,
-      headless: true,
+      headless,
     });
     res.json({ query, count: items.length, items });
   } catch (error) {

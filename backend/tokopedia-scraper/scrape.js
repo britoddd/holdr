@@ -54,39 +54,112 @@ async function scrapeTokopediaSearch(query, options = {}) {
           return digits ? Number(digits) : null;
         };
 
+        const normalizeSold = (text) => {
+          if (!text) return null;
+          const lower = text.toLowerCase();
+          const cleaned = lower.replace(/\+/g, "");
+
+          const toNumber = (numStr, unit) => {
+            if (!numStr) return null;
+            const normalized = numStr.replace(/\./g, "").replace(",", ".");
+            const n = parseFloat(normalized);
+            if (!Number.isFinite(n)) return null;
+            if (unit === "rb" || (!unit && /,/.test(numStr))) return Math.round(n * 1000);
+            if (unit === "jt") return Math.round(n * 1_000_000);
+            return Math.round(n);
+          };
+
+          // Pattern A: "Terjual 1,2rb" or "Terjual 40"
+          let match = cleaned.match(/terjual[^\d]*([\d.,]+)\s*(rb|jt)?/);
+          if (match) return toNumber(match[1], match[2]);
+
+          // Pattern B: "40 terjual" or "1,2rb terjual"
+          match = cleaned.match(/([\d.,]+)\s*(rb|jt)?\s*terjual/);
+          if (match) return toNumber(match[1], match[2]);
+
+          // Pattern C: number + rb/jt anywhere
+          match = cleaned.match(/([\d.,]+)\s*(rb|jt)\b/);
+          if (match) return toNumber(match[1], match[2]);
+
+          return null;
+        };
+
+        const NAME_SELECTOR = '[class*="+tnoqZhn89+NHUA43BpiJg=="]';
+        const SOLD_SELECTOR = '[class*="u6SfjDD2WiBlNW7zHmzRhQ=="]';
+        const PRICE_SELECTORS = [
+          '[class*="urMOIDHH7I0Iy1Dv2oFaNw=="]',
+          '[class*="YZHqvX+8TVU2YltRC9S+oA=="]',
+        ];
+
+        const ensureContainer = (node, up = 8) => {
+          let el = node;
+          for (let i = 0; i < up && el?.parentElement; i++) {
+            el = el.parentElement;
+            const hasLink = el.querySelector('a[href*="tokopedia.com"]');
+            const hasPrice = PRICE_SELECTORS.some((sel) => el.querySelector(sel));
+            if (hasLink && hasPrice) break;
+          }
+          return el || node;
+        };
+
+        const findSoldText = (start) => {
+          let el = start;
+          for (let i = 0; i < 8 && el; i++) {
+            const node = el.querySelector(SOLD_SELECTOR);
+            if (node?.innerText) return node.innerText;
+            const txt = el.innerText || '';
+            if (/terjual/i.test(txt)) return txt;
+            el = el.parentElement;
+          }
+          return null;
+        };
+
+        const toArray = (nodeList) => Array.from(nodeList || []);
+
+        const nameNodes = toArray(document.querySelectorAll(NAME_SELECTOR));
         const results = [];
+        const seen = new Set();
 
-        // Find ALL elements containing price-like text
-        const priceNodes = Array.from(document.querySelectorAll("*")).filter(
-          (el) =>
-            el.innerText &&
-            el.innerText.includes("Rp") &&
-            el.innerText.match(/Rp\s?[\d\.]+/)
-        );
+        for (const nameNode of nameNodes) {
+          const container = ensureContainer(nameNode);
+          const title = (nameNode.innerText || '').trim();
+          if (!title || title.length < 3 || title.length > 200) continue;
+          const titleLower = title.toLowerCase();
+          const blockedWords = [
+            'produk toko',
+            'pencarian terkait',
+            'iklan',
+            'promo',
+            'voucher',
+            'kupon',
+          ];
+          if (blockedWords.some((w) => titleLower.includes(w))) continue;
 
-        for (const node of priceNodes) {
-          // Walk up the DOM to find a reasonable container
-          let container = node;
-          for (let i = 0; i < 6; i++) {
-            if (!container.parentElement) break;
-            container = container.parentElement;
+          const link = container.querySelector('a[href*="tokopedia.com"]')?.href || null;
+          if (!link || seen.has(link)) continue;
+
+          let priceText = null;
+          for (const sel of PRICE_SELECTORS) {
+            const priceNode = container.querySelector(sel);
+            if (priceNode?.innerText) {
+              priceText = priceNode.innerText;
+              break;
+            }
           }
 
-          const text = container.innerText;
-          const priceMatch = text.match(/Rp\s?[\d\.]+/);
-          if (!priceMatch) continue;
+          if (!priceText) {
+            const match = (container.innerText || '').match(/Rp\s?[\d\.]+/);
+            priceText = match ? match[0] : null;
+          }
 
-          const link = container.querySelector("a[href]")?.href || null;
+          const price = priceText ? normalizeNumber(priceText) : null;
+          if (!price || !Number.isFinite(price)) continue;
 
-          const title = text.split("\n")[0]?.trim() || null;
+          const soldText = findSoldText(container);
+          const soldCount = soldText ? normalizeSold(soldText) : null;
 
-          if (!link || !title) continue;
-
-          results.push({
-            title,
-            price: normalizeNumber(priceMatch[0]),
-            url: link,
-          });
+          results.push({ title, price, url: link, soldCount });
+          seen.add(link);
         }
 
         return results;
