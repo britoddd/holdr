@@ -581,11 +581,19 @@ export default function Home() {
                       {item.category}
                     </span>
                   </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{
+                        backgroundColor: getStorageColor(item.storagePlace),
+                      }}
+                    />
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      {item.storagePlace}
+                    </span>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                    {item.description || "No description"}
-                  </p>
                   <div className="overflow-hidden rounded-md border bg-gray-50 dark:bg-gray-800">
                     {item.imageUrl ? (
                       <img
@@ -602,17 +610,9 @@ export default function Home() {
                   <div className="flex justify-between items-center text-sm">
                     <span className="font-semibold">Qty: {item.quantity}</span>
                   </div>
-                  <div className="flex justify-between items-center text-sm mt-2">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{
-                          backgroundColor: getStorageColor(item.storagePlace),
-                        }}
-                      />
-                      Storage: {item.storagePlace}
-                    </span>
-                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                    {item.description || "No description"}
+                  </p>
                   <div className="flex justify-between items-center text-sm mt-2 pt-2 border-t">
                     <span className="text-xs text-gray-600 dark:text-gray-400">
                       Owned since{" "}
@@ -676,6 +676,8 @@ export default function Home() {
                             <CardTitle className="text-sm truncate">
                               {item.name}
                             </CardTitle>
+                          </div>
+                          <div className="flex items-center gap-2 mb-1">
                             <span
                               className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
                               style={{
@@ -687,7 +689,19 @@ export default function Home() {
                             >
                               {item.category}
                             </span>
+                            <span className="flex items-center gap-1 text-xs text-gray-500">
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{
+                                  backgroundColor: getStorageColor(item.storagePlace),
+                                }}
+                              />
+                              {item.storagePlace}
+                            </span>
                           </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            Qty: {item.quantity}
+                          </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-1">
                             {item.description || "No description"}
                           </p>
@@ -712,9 +726,6 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="mt-2 flex justify-between text-xs text-gray-500">
-                        <span>
-                          Qty: {item.quantity} • Storage: {item.storagePlace}
-                        </span>
                         <span className="text-blue-600 dark:text-blue-400">
                           {item.usageFrequency}
                         </span>
@@ -775,10 +786,12 @@ export default function Home() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 mb-1">
                                   <CardTitle className="text-base truncate">
                                     {item.name}
                                   </CardTitle>
+                                </div>
+                                <div className="flex items-center gap-2 mb-1">
                                   <span
                                     className="text-[10px] px-2 py-0.5 rounded-full"
                                     style={{
@@ -790,7 +803,19 @@ export default function Home() {
                                   >
                                     {item.category}
                                   </span>
+                                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                                    <span
+                                      className="w-2 h-2 rounded-full"
+                                      style={{
+                                        backgroundColor: getStorageColor(item.storagePlace),
+                                      }}
+                                    />
+                                    {item.storagePlace}
+                                  </span>
                                 </div>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  Qty: {item.quantity}
+                                </p>
                                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
                                   {item.description || "No description"}
                                 </p>
@@ -829,11 +854,7 @@ export default function Home() {
                               </div>
                             </div>
 
-                            <div className="mt-3 flex items-center justify-between">
-                              <div className="text-xs text-gray-500">
-                                Qty: {item.quantity} • Storage:{" "}
-                                {item.storagePlace}
-                              </div>
+                            <div className="mt-3 flex items-center justify-end">
                               <div className="grid grid-cols-2 gap-2 w-44 sm:w-56">
                                 <Button
                                   variant="outline"
