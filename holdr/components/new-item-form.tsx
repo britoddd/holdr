@@ -5,7 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useStore } from "@/lib/store";
 import { recognizeItem } from "@/lib/api";
 import { useState, useEffect } from "react";
@@ -14,18 +20,37 @@ import { Item } from "@/lib/types";
 type UsageFrequencyType = "Daily" | "Weekly" | "Monthly" | "Rarely" | "Never";
 
 type NewItemFormProps = {
-  onSubmit?: (data: { name: string; description: string; quantity: number; category: string; storagePlace: string; dateOwned: string; usageFrequency: UsageFrequencyType; imageUrl?: string }) => void;
+  onSubmit?: (data: {
+    name: string;
+    description: string;
+    quantity: number;
+    category: string;
+    storagePlace: string;
+    dateOwned: string;
+    usageFrequency: UsageFrequencyType;
+    imageUrl?: string;
+  }) => void;
   onCancel?: () => void;
   title?: string;
   className?: string;
   editItem?: Item;
 };
 
-export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: NewItemFormProps) {
+export function NewItemForm({
+  onSubmit,
+  onCancel,
+  title,
+  className,
+  editItem,
+}: NewItemFormProps) {
   const categories = useStore((state) => state.categories);
   const storagePlaces = useStore((state) => state.storagePlaces);
-  const [selectedCategory, setSelectedCategory] = useState<string>(editItem?.category || "");
-  const [selectedStorage, setSelectedStorage] = useState<string>(editItem?.storagePlace || "");
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    editItem?.category || ""
+  );
+  const [selectedStorage, setSelectedStorage] = useState<string>(
+    editItem?.storagePlace || ""
+  );
   const [name, setName] = useState(editItem?.name || "");
   const [description, setDescription] = useState(editItem?.description || "");
   const [quantity, setQuantity] = useState(editItem?.quantity || 1);
@@ -43,9 +68,14 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
   const [usageFrequency, setUsageFrequency] = useState<UsageFrequencyType>(
     (editItem?.usageFrequency as UsageFrequencyType) || "Weekly"
   );
-  const [imageUrl, setImageUrl] = useState<string | undefined>(editItem?.imageUrl);
+  const [imageUrl, setImageUrl] = useState<string | undefined>(
+    editItem?.imageUrl
+  );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [suggestions, setSuggestions] = useState<{ label: string; category: string } | null>(null);
+  const [suggestions, setSuggestions] = useState<{
+    label: string;
+    category: string;
+  } | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,7 +85,9 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
       setQuantity(editItem.quantity);
       setSelectedCategory(editItem.category);
       setSelectedStorage(editItem.storagePlace);
-      setDateOwned(editItem.dateOwned || new Date().toISOString().split("T")[0]);
+      setDateOwned(
+        editItem.dateOwned || new Date().toISOString().split("T")[0]
+      );
       setUsageFrequency(editItem.usageFrequency || "Weekly");
       setImageUrl(editItem.imageUrl);
     }
@@ -65,7 +97,7 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     const data = {
       name,
       description,
@@ -86,9 +118,8 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
         onCancel();
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error("Failed to submit item:", errorMsg, error);
-      throw new Error(errorMsg || "Failed to save item");
+      console.error("Failed to submit item:", error);
+      throw new Error("Failed to save item");
     }
   };
 
@@ -122,7 +153,7 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
       setSuggestions(null);
       return;
     }
-    
+
     // Read file for preview
     const reader = new FileReader();
     reader.onload = () => {
@@ -136,7 +167,7 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
     setIsAnalyzing(true);
     setSuggestions(null);
     setAnalysisError(null);
-    
+
     try {
       const data = await recognizeItem(file);
       setSuggestions({
@@ -145,9 +176,8 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
       });
       setAnalysisError(null);
     } catch (error) {
-      console.error('Failed to analyze image:', error);
-      const message = error instanceof Error ? error.message : 'Image analysis failed';
-      setAnalysisError(message);
+      console.error("Failed to analyze image:", error);
+      setAnalysisError("Image analysis failed");
     } finally {
       setIsAnalyzing(false);
     }
@@ -177,10 +207,7 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
             <div className="space-y-2">
               <Label htmlFor="image">Item Image</Label>
               <div className="relative w-full overflow-hidden rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
-                <label
-                  htmlFor="image"
-                  className="block cursor-pointer"
-                >
+                <label htmlFor="image" className="block cursor-pointer">
                   {imageUrl ? (
                     <img
                       src={imageUrl}
@@ -189,7 +216,9 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
                     />
                   ) : (
                     <div className="h-64 w-full flex flex-col items-center justify-center gap-2 text-sm text-gray-500">
-                      <span className="font-medium">Click to upload an image</span>
+                      <span className="font-medium">
+                        Click to upload an image
+                      </span>
                       <span className="text-xs">PNG, JPG up to a few MB</span>
                     </div>
                   )}
@@ -199,7 +228,9 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                  onChange={(e) =>
+                    handleFileChange(e.target.files?.[0] || null)
+                  }
                 />
                 {imageUrl && (
                   <div className="absolute top-2 right-2 flex gap-2">
@@ -233,8 +264,14 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
                 <div className="p-3 border rounded-md bg-blue-50 dark:bg-blue-950 space-y-2">
                   <p className="text-sm font-medium">AI Suggestions:</p>
                   <div className="text-sm space-y-1">
-                    <p><span className="font-medium">Name:</span> {suggestions.label}</p>
-                    <p><span className="font-medium">Category:</span> {suggestions.category}</p>
+                    <p>
+                      <span className="font-medium">Name:</span>{" "}
+                      {suggestions.label}
+                    </p>
+                    <p>
+                      <span className="font-medium">Category:</span>{" "}
+                      {suggestions.category}
+                    </p>
                   </div>
                   <Button
                     type="button"
@@ -250,11 +287,11 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
 
             <div className="space-y-2">
               <Label htmlFor="name">Item Name</Label>
-              <Input 
-                id="name" 
-                name="name" 
-                placeholder="USB Cable" 
-                required 
+              <Input
+                id="name"
+                name="name"
+                placeholder="USB Cable"
+                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -262,7 +299,11 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
 
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory} required>
+              <Select
+                value={selectedCategory}
+                onValueChange={setSelectedCategory}
+                required
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
@@ -292,7 +333,11 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
 
             <div className="space-y-2">
               <Label htmlFor="storage">Storage Place</Label>
-              <Select value={selectedStorage} onValueChange={setSelectedStorage} required>
+              <Select
+                value={selectedStorage}
+                onValueChange={setSelectedStorage}
+                required
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a storage place" />
                 </SelectTrigger>
@@ -364,7 +409,13 @@ export function NewItemForm({ onSubmit, onCancel, title, className, editItem }: 
 
             <div className="space-y-2">
               <Label htmlFor="usageFrequency">Usage Frequency</Label>
-              <Select value={usageFrequency} onValueChange={(value) => setUsageFrequency(value as UsageFrequencyType)} required>
+              <Select
+                value={usageFrequency}
+                onValueChange={(value) =>
+                  setUsageFrequency(value as UsageFrequencyType)
+                }
+                required
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select frequency" />
                 </SelectTrigger>

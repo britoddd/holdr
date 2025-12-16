@@ -68,10 +68,9 @@ export default function Home() {
       }
       setShowAddForm(false);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save item";
       setNotification({
         type: "error",
-        message: `Error: ${errorMessage}`,
+        message: "Failed to save item",
       });
       console.error("Failed to save item", error);
     }
