@@ -16,7 +16,7 @@ import { useStore } from "@/lib/store";
 import { recognizeItem } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { Item } from "@/lib/types";
-import { Image } from "next/image";
+import Image from "next/image";
 
 type UsageFrequencyType = "Daily" | "Weekly" | "Monthly" | "Rarely" | "Never";
 

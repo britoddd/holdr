@@ -18,7 +18,7 @@ import {
   ImageOff,
 } from "lucide-react";
 import { Item } from "@/lib/types";
-import { Image } from "next/image";
+import  Image  from "next/image";
 
 export default function Home() {
   const items = useStore((state) => state.items);
