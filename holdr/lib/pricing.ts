@@ -155,7 +155,9 @@ export async function fetchMarketPrice({
       const items = Array.isArray(data.items) ? data.items : []
 
       const filtered = items.filter((it: ScrapeApiItem) => {
-        if (seenUrls.has(it.url)) return false // Skip duplicates
+        const itemUrl = typeof it.url === "string" ? it.url : ""
+        if (!itemUrl) return false
+        if (seenUrls.has(itemUrl)) return false // Skip duplicates
         const title = typeof it.title === "string" ? it.title : ""
         const lower = title.toLowerCase()
         const blocked = ["produk toko", "pencarian terkait", "iklan", "promo", "voucher", "kupon"]
@@ -164,8 +166,10 @@ export async function fetchMarketPrice({
       })
 
       for (const item of filtered) {
-        if (!seenUrls.has(item.url)) {
-          seenUrls.add(item.url)
+        const itemUrl = typeof item.url === "string" ? item.url : ""
+        if (!itemUrl) continue
+        if (!seenUrls.has(itemUrl)) {
+          seenUrls.add(itemUrl)
           allCollectedItems.push(item)
         }
       }
