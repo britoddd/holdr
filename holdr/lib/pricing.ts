@@ -3,6 +3,13 @@ type ScrapeItem = {
   soldCount?: number | null
 }
 
+type ScrapeApiItem = {
+  title?: string
+  price?: number
+  url?: string
+  soldCount?: number
+}
+
 export type MarketPriceData = {
   bestPrice: number | null
   items: ScrapeItem[]
@@ -117,7 +124,7 @@ export async function fetchMarketPrice({
   if (simpleName && simpleName !== name) queries.push(simpleName)
 
   // Collect results from ALL queries (not just first successful one)
-  const allCollectedItems: Array<{ title?: string; price?: number; url?: string; soldCount?: number }> = []
+  const allCollectedItems: ScrapeApiItem[] = []
   const seenUrls = new Set<string>()
 
   const tokens = String(name)
@@ -147,7 +154,7 @@ export async function fetchMarketPrice({
       const data = await res.json()
       const items = Array.isArray(data.items) ? data.items : []
 
-      const filtered = items.filter((it: any) => {
+      const filtered = items.filter((it: ScrapeApiItem) => {
         if (seenUrls.has(it.url)) return false // Skip duplicates
         const title = typeof it.title === "string" ? it.title : ""
         const lower = title.toLowerCase()
@@ -174,9 +181,9 @@ export async function fetchMarketPrice({
     if (best !== null) {
       // Calculate average sold count across all items with valid soldCount data
       const validItems = allCollectedItems.filter(
-        (item: any) => item.soldCount !== undefined && item.soldCount !== null
+        (item: ScrapeApiItem) => item.soldCount !== undefined && item.soldCount !== null
       )
-      const totalSold = validItems.reduce((sum: number, item: any) => sum + (item.soldCount || 0), 0)
+      const totalSold = validItems.reduce((sum: number, item: ScrapeApiItem) => sum + (item.soldCount || 0), 0)
       const avgSold = validItems.length > 0 ? totalSold / validItems.length : 0
 
       return {
