@@ -3,7 +3,7 @@ const cors = require("cors");
 const { scrapeTokopediaSearch } = require("../tokopedia-scraper/scrape");
 
 const app = express();
-const port = 3001;
+const port = 4050;
 
 app.use(cors());
 app.use(express.json());

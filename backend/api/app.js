@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const app = express();
-const port = 3000;
+const port = 4040;
 
 // URL of local scraper service (runs with headless: false on user's machine)
 const SCRAPER_SERVICE_URL = process.env.SCRAPER_SERVICE_URL || "http://192.168.18.91:3001";

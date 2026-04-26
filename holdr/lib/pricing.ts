@@ -39,11 +39,11 @@ export function calculateSellability(price: number, scrapeData: ScrapeItem[]): n
   // Demand score: based on average sold count (more loose thresholds)
   // Medium demand (>100 avg sold) = 100, Low demand (<5 avg sold) = 0
   // Using logarithmic scale for better distribution
-  let demandScore = Math.min(100, Math.log(avgSold + 1) * 20)
+  const demandScore = Math.min(100, Math.log(avgSold + 1) * 20)
 
   // Price competitiveness: lower price relative to market = higher score
   // Using a smoother curve instead of linear
-  let priceScore = Math.pow(1 - pricePosition, 1.5) * 100
+  const priceScore = Math.pow(1 - pricePosition, 1.5) * 100
 
   // Weight: 50% demand, 50% price competitiveness (more balanced)
   const sellabilityScore = (demandScore * 0.5) + (priceScore * 0.5)

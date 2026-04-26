@@ -16,6 +16,7 @@ import { useStore } from "@/lib/store";
 import { recognizeItem } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { Item } from "@/lib/types";
+import { Image } from "next/image";
 
 type UsageFrequencyType = "Daily" | "Weekly" | "Monthly" | "Rarely" | "Never";
 
@@ -209,7 +210,7 @@ export function NewItemForm({
               <div className="relative w-full overflow-hidden rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                 <label htmlFor="image" className="block cursor-pointer">
                   {imageUrl ? (
-                    <img
+                    <Image
                       src={imageUrl}
                       alt="Item preview"
                       className="h-64 w-full object-cover"

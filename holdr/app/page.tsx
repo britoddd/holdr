@@ -18,6 +18,7 @@ import {
   ImageOff,
 } from "lucide-react";
 import { Item } from "@/lib/types";
+import { Image } from "next/image";
 
 export default function Home() {
   const items = useStore((state) => state.items);
@@ -339,7 +340,7 @@ export default function Home() {
                       <div className="flex items-center gap-4">
                         <div className="w-16 h-16 rounded-lg overflow-hidden border bg-gray-50 dark:bg-gray-700 flex-shrink-0">
                           {item.imageUrl ? (
-                            <img
+                            <Image
                               src={item.imageUrl}
                               alt={item.name}
                               className="w-full h-full object-cover"
@@ -595,7 +596,7 @@ export default function Home() {
                 <CardContent className="space-y-3">
                   <div className="overflow-hidden rounded-md border bg-gray-50 dark:bg-gray-800">
                     {item.imageUrl ? (
-                      <img
+                      <Image
                         src={item.imageUrl}
                         alt={item.name}
                         className="h-40 w-full object-cover"
@@ -657,7 +658,7 @@ export default function Home() {
                   <div className="flex items-start gap-4">
                     <div className="w-20 h-20 rounded-md overflow-hidden border bg-gray-50 dark:bg-gray-800 flex-shrink-0">
                       {item.imageUrl ? (
-                        <img
+                        <Image
                           src={item.imageUrl}
                           alt={item.name}
                           className="w-full h-full object-cover"
@@ -771,7 +772,7 @@ export default function Home() {
                         <div className="flex items-start gap-4">
                           <div className="w-32 h-24 rounded-md overflow-hidden border bg-gray-50 dark:bg-gray-800 flex-shrink-0">
                             {item.imageUrl ? (
-                              <img
+                              <Image
                                 src={item.imageUrl}
                                 alt={item.name}
                                 className="w-full h-full object-cover"
